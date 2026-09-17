@@ -1,0 +1,60 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build output
+bin/
+obj/
+Debug/
+Release/
+
+# Visual Studio generated files
+*.pdb
+*.dll
+*.exe
+
+# Test results
+TestResults/
+*.trx
+
+# Publish output
+publish/
+wwwroot/publish/
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+
+# ASP.NET Core
+wwwroot/lib/
+
+# Logs
+*.log
+
+# Local development configuration
+appsettings.Development.local.json
+
+# User Secrets
+secrets.json
+
+# Environment files
+.env
+.env.*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Rider / JetBrains
+.idea/
+
+# VS Code
+.vscode/
+
+# Temporary files
+*.tmp
+*.temp
