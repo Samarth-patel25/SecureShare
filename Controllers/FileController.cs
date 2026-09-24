@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SecureShare.Data;
 using SecureShare.Models;
+using SecureShare.Services;
 
 namespace SecureShare.Controllers
 {
@@ -10,10 +11,11 @@ namespace SecureShare.Controllers
     public class FileController : Controller
     {
         private readonly ApplicationDbContext _context;
-
-        public FileController(ApplicationDbContext context)
+        private readonly EncryptionService _encryptionService;
+        public FileController(ApplicationDbContext context,EncryptionService encryptionService)
         {
             _context = context;
+            _encryptionService = encryptionService;
         }
 
         [HttpGet]
@@ -68,6 +70,8 @@ namespace SecureShare.Controllers
                 "Uploads"
             );
 
+            Directory.CreateDirectory(uploadsFolder);
+
             string storedFileName = Guid.NewGuid().ToString() + extension;
 
             string filePath = Path.Combine(
@@ -75,10 +79,24 @@ namespace SecureShare.Controllers
                 storedFileName
             );
 
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            string tempFilePath = Path.Combine(
+                uploadsFolder,
+                "temp_" + Guid.NewGuid() + extension
+            );
+
+            using (var stream = new FileStream(
+                tempFilePath,
+                FileMode.Create))
             {
                 await model.File.CopyToAsync(stream);
             }
+
+            await _encryptionService.EncryptFileAsync(
+                tempFilePath,
+                filePath
+            );
+
+            System.IO.File.Delete(tempFilePath);
 
             var file = new SecureShare.Models.File
             {
