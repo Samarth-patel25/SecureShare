@@ -22,5 +22,7 @@ namespace SecureShare.Models
 
         [Required]
         public string UserId { get; set; } = string.Empty;
+
+        public ICollection<FileShare> FileShares { get; set; } = new List<FileShare>();
     }
 }

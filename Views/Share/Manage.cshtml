@@ -1,0 +1,135 @@
+﻿@model IEnumerable<SecureShare.Models.FileShare>
+
+@{
+    ViewData["Title"] = "Manage Shares";
+}
+
+<div class="container mt-4">
+
+    <h2>Manage Shares</h2>
+
+    @if (!Model.Any())
+    {
+        <p>You have not created any share links yet.</p>
+    }
+    else
+    {
+        <table class="table table-bordered table-striped mt-3">
+
+            <thead>
+                <tr>
+                    <th>File</th>
+                    <th>Created</th>
+                    <th>Expires</th>
+                    <th>Downloads</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                @foreach (var share in Model)
+                {
+                    <tr>
+
+                        <td>
+                            @share.File.OriginalFileName
+                        </td>
+
+                        <td>
+                            @share.CreatedAt.ToLocalTime()
+                        </td>
+
+                        <td>
+                            @if (share.ExpiresAt.HasValue)
+                            {
+                                @share.ExpiresAt.Value.ToLocalTime()
+                            }
+                            else
+                            {
+                                <span>Never</span>
+                            }
+                        </td>
+
+                        <td>
+                            @if (share.MaxDownloads.HasValue)
+                            {
+                                <span>
+                                    @($"{share.DownloadCount} / {share.MaxDownloads.Value}")
+                                </span>
+                            }
+                            else
+                            {
+                                <span>
+                                    @($"{share.DownloadCount} / ∞")
+                                </span>
+                            }
+                        </td>   
+
+                        <td>
+                            @if (share.IsRevoked)
+                            {
+                                <span class="badge bg-danger">
+                                    Revoked
+                                </span>
+                            }
+                            else if (share.ExpiresAt.HasValue &&
+                                     share.ExpiresAt.Value < DateTime.UtcNow)
+                            {
+                                <span class="badge bg-warning text-dark">
+                                    Expired
+                                </span>
+                            }
+                            else if (share.MaxDownloads.HasValue &&
+                                     share.DownloadCount >= share.MaxDownloads.Value)
+                            {
+                                <span class="badge bg-secondary">
+                                    Limit Reached
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">
+                                    Active
+                                </span>
+                            }
+                        </td>
+
+                        <td>
+
+                            @if (!share.IsRevoked)
+                            {
+                                <form asp-controller="Share"
+                                      asp-action="Revoke"
+                                      method="post">
+
+                                    <input type="hidden"
+                                           name="id"
+                                           value="@share.Id" />
+
+                                    <button type="submit"
+                                            class="btn btn-danger btn-sm">
+                                        Revoke
+                                    </button>
+
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-muted">
+                                    Revoked
+                                </span>
+                            }
+
+                        </td>
+
+                    </tr>
+                }
+
+            </tbody>
+
+        </table>
+    }
+
+</div>

@@ -7,6 +7,11 @@
 <div class="container mt-4">
 
     <h2>My Files</h2>
+    <a asp-controller="Share"
+       asp-action="Manage"
+       class="btn btn-secondary mb-3">
+        Manage Shares
+    </a>
 
     @if (!Model.Any())
     {
@@ -53,6 +58,37 @@
                                class="btn btn-primary">
                                 Download
                             </a>
+
+                            <form asp-controller="Share"
+                                  asp-action="Create"
+                                  method="post"
+                                  class="d-inline">
+
+                                <input type="hidden" name="fileId" value="@file.Id" />
+
+                                <select name="expiryHours"
+                                        class="form-select d-inline-block"
+                                        style="width: auto;">
+                                    <option value="0">Never expires</option>
+                                    <option value="1">1 hour</option>
+                                    <option value="24">1 day</option>
+                                    <option value="168">7 days</option>
+                                </select>
+
+                                <select name="maxDownloads"
+                                        class="form-select d-inline-block"
+                                        style="width: auto;">
+                                    <option value="0">Unlimited downloads</option>
+                                    <option value="1">1 download</option>
+                                    <option value="5">5 downloads</option>
+                                    <option value="10">10 downloads</option>
+                                </select>
+
+                                <button type="submit" class="btn btn-success">
+                                    Share
+                                </button>
+
+                            </form>
                         </td>
                     </tr>
                 }

@@ -7,5 +7,6 @@ namespace SecureShare.Data
     public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext(options)
     {
         public DbSet<SecureShare.Models.File> Files { get; set; }
+        public DbSet<SecureShare.Models.FileShare> FileShares { get; set; }
     }
 }
