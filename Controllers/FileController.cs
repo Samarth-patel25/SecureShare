@@ -148,10 +148,12 @@ namespace SecureShare.Controllers
                 return NotFound();
             }
 
-            byte[] fileBytes = await System.IO.File.ReadAllBytesAsync(file.FilePath);
+            byte[] decryptedFile = await _encryptionService.DecryptFileAsync(
+                file.FilePath
+            );
 
             return File(
-                fileBytes,
+                decryptedFile,
                 file.ContentType,
                 file.OriginalFileName
             );

@@ -63,5 +63,43 @@ namespace SecureShare.Services
             await cryptoStream.FlushFinalBlockAsync(); //We've reached the end of the file. Finish the encryption and write the remaining encrypted data.
                 // it performs encrption block by block so flush the blockn after the encription of chunk
         }
+
+        public async Task<byte[]> DecryptFileAsync(string encryptedFilePath)
+        {
+            using FileStream inputFile = new FileStream(
+                encryptedFilePath,
+                FileMode.Open,
+                FileAccess.Read
+            );
+
+            // Read the IV stored at the beginning of the encrypted file
+            byte[] iv = new byte[16];
+
+            int bytesRead = await inputFile.ReadAsync(iv);
+
+            if (bytesRead != 16)
+            {
+                throw new InvalidOperationException(
+                    "Invalid encrypted file."
+                );
+            }
+
+            using Aes aes = Aes.Create();
+
+            aes.Key = _key;
+            aes.IV = iv;
+
+            using CryptoStream cryptoStream = new CryptoStream(
+                inputFile,
+                aes.CreateDecryptor(),
+                CryptoStreamMode.Read
+            );
+
+            using MemoryStream decryptedFile = new MemoryStream();
+
+            await cryptoStream.CopyToAsync(decryptedFile);
+
+            return decryptedFile.ToArray();
+        }
     }
 }
