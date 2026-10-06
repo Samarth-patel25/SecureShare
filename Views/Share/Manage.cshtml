@@ -2,166 +2,134 @@
 
 @{
     ViewData["Title"] = "Manage Shares";
+
+    Func<SecureShare.Models.FileShare, bool> isActive = s =>
+        !s.IsRevoked
+        && !(s.ExpiresAt.HasValue && s.ExpiresAt.Value < DateTime.UtcNow)
+        && !(s.MaxDownloads.HasValue && s.DownloadCount >= s.MaxDownloads.Value);
+
+    var total = Model.Count();
+    var active = Model.Count(isActive);
+    var downloads = Model.Sum(s => s.DownloadCount);
 }
 
-<div class="container mt-4">
-
-    <h2>Manage Shares</h2>
-
-    @if (!Model.Any())
-    {
-        <p>You have not created any share links yet.</p>
-    }
-    else
-    {
-        <table class="table table-bordered table-striped mt-3">
-
-            <thead>
-                <tr>
-                    <th>File</th>
-                    <th>Created</th>
-                    <th>Expires</th>
-                    <th>Downloads</th>
-                    <th>Status</th>
-                    <th>Share Link</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-
-            <tbody>
-
-                @foreach (var share in Model)
-                {
-                    <tr>
-
-                        <td>
-                            @share.File.OriginalFileName
-                        </td>
-
-                        <td>
-                            @share.CreatedAt.ToLocalTime()
-                        </td>
-
-                        <td>
-                            @if (share.ExpiresAt.HasValue)
-                            {
-                                @share.ExpiresAt.Value.ToLocalTime()
-                            }
-                            else
-                            {
-                                <span>Never</span>
-                            }
-                        </td>
-
-                        <td>
-                            @if (share.MaxDownloads.HasValue)
-                            {
-                                <span>
-                                    @($"{share.DownloadCount} / {share.MaxDownloads.Value}")
-                                </span>
-                            }
-                            else
-                            {
-                                <span>
-                                    @($"{share.DownloadCount} / ∞")
-                                </span>
-                            }
-                        </td>   
-
-                        <td>
-                            @if (share.IsRevoked)
-                            {
-                                <span class="badge bg-danger">
-                                    Revoked
-                                </span>
-                            }
-                            else if (share.ExpiresAt.HasValue &&
-                                     share.ExpiresAt.Value < DateTime.UtcNow)
-                            {
-                                <span class="badge bg-warning text-dark">
-                                    Expired
-                                </span>
-                            }
-                            else if (share.MaxDownloads.HasValue &&
-                                     share.DownloadCount >= share.MaxDownloads.Value)
-                            {
-                                <span class="badge bg-secondary">
-                                    Limit Reached
-                                </span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-success">
-                                    Active
-                                </span>
-                            }
-                        </td>
-
-                        <td>
-                            @{
-                                string shareLink =
-                                    $"{Context.Request.Scheme}://{Context.Request.Host}" +
-                                    $"{Url.Action("Access", "Share", new { token = share.ShareToken })}";
-                            }
-
-                            @if (!share.IsRevoked)
-                            {
-                                <button type="button"
-                                        class="btn btn-primary btn-sm"
-                                        onclick="copyLink('@shareLink')">
-                                    Copy Link
-                                </button>
-                            }
-                            else
-                            {
-                                <span class="text-muted">
-                                    Unavailable
-                                </span>
-                            }
-                        </td>
-
-                        <td>
-
-                            @if (!share.IsRevoked)
-                            {
-                                <form asp-controller="Share"
-                                      asp-action="Revoke"
-                                      method="post">
-
-                                    <input type="hidden"
-                                           name="id"
-                                           value="@share.Id" />
-
-                                    <button type="submit"
-                                            class="btn btn-danger btn-sm">
-                                        Revoke
-                                    </button>
-
-                                </form>
-                            }
-                            else
-                            {
-                                <span class="text-muted">
-                                    Revoked
-                                </span>
-                            }
-
-                        </td>
-
-                    </tr>
-                }
-
-            </tbody>
-
-        </table>
-    }
-
+<div class="mb-4">
+    <h2 class="fw-bold mb-1">Manage Shares</h2>
+    <div class="text-muted">Track and control every share link you created.</div>
 </div>
 
+@if (!Model.Any())
+{
+    <div class="ss-card p-5 text-center">
+        <p class="text-muted mb-3">You have not created any share links yet.</p>
+        <a asp-controller="File" asp-action="MyFiles" class="btn btn-primary">Go to My Files</a>
+    </div>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3"><div class="ss-card ss-stat"><div class="text-muted small">Total links</div><div class="num">@total</div></div></div>
+        <div class="col-6 col-md-3"><div class="ss-card ss-stat"><div class="text-muted small">Active</div><div class="num">@active</div></div></div>
+        <div class="col-6 col-md-3"><div class="ss-card ss-stat"><div class="text-muted small">Total downloads</div><div class="num">@downloads</div></div></div>
+        <div class="col-6 col-md-3"><div class="ss-card ss-stat"><div class="text-muted small">Inactive</div><div class="num">@(total - active)</div></div></div>
+    </div>
 
-<script>
-    function copyLink(link) {
-        navigator.clipboard.writeText(link);
-        alert("Share link copied!");
-    }
-</script>
+    <div class="ss-card overflow-hidden">
+        <div class="table-responsive">
+            <table class="ss-table">
+                <thead>
+                    <tr>
+                        <th>File</th>
+                        <th>Created</th>
+                        <th>Expires</th>
+                        <th>Downloads</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var share in Model)
+                    {
+                        string shareLink =
+                            $"{Context.Request.Scheme}://{Context.Request.Host}" +
+                            $"{Url.Action("Access", "Share", new { token = share.ShareToken })}";
+
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-3">
+                                    <partial name="_FileChip" model="share.File.OriginalFileName" />
+                                    <span class="fw-semibold">@share.File.OriginalFileName</span>
+                                </div>
+                            </td>
+
+                            <td class="text-muted text-nowrap">@share.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</td>
+
+                            <td class="text-muted text-nowrap">
+                                @if (share.ExpiresAt.HasValue)
+                                {
+                                    @share.ExpiresAt.Value.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+                                }
+                                else
+                                {
+                                    <span>Never</span>
+                                }
+                            </td>
+
+                            <td>
+                                @if (share.MaxDownloads.HasValue)
+                                {
+                                    var pct = (int)Math.Min(100, share.DownloadCount * 100.0 / share.MaxDownloads.Value);
+                                    <div class="small mb-1">@($"{share.DownloadCount} / {share.MaxDownloads.Value}")</div>
+                                    <div class="ss-prog"><i style="width:@(pct)%"></i></div>
+                                }
+                                else
+                                {
+                                    <div class="small mb-1">@($"{share.DownloadCount} / ∞")</div>
+                                    <div class="ss-prog"></div>
+                                }
+                            </td>
+
+                            <td>
+                                @if (share.IsRevoked)
+                                {
+                                    <span class="ss-pill ss-pill-bad">Revoked</span>
+                                }
+                                else if (share.ExpiresAt.HasValue && share.ExpiresAt.Value < DateTime.UtcNow)
+                                {
+                                    <span class="ss-pill ss-pill-warn">Expired</span>
+                                }
+                                else if (share.MaxDownloads.HasValue && share.DownloadCount >= share.MaxDownloads.Value)
+                                {
+                                    <span class="ss-pill ss-pill-muted">Limit Reached</span>
+                                }
+                                else
+                                {
+                                    <span class="ss-pill ss-pill-ok">Active</span>
+                                }
+                            </td>
+
+                            <td class="text-end text-nowrap">
+                                @if (!share.IsRevoked)
+                                {
+                                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            onclick="copyLink('@shareLink', this)">
+                                        Copy link
+                                    </button>
+
+                                    <form asp-controller="Share" asp-action="Revoke" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@share.Id" />
+                                        <button type="submit" class="btn btn-danger-soft btn-sm">Revoke</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">&mdash;</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

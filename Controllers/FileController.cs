@@ -113,7 +113,7 @@ namespace SecureShare.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Content("File uploaded successfully!");
+            return RedirectToAction("MyFiles");
         }
 
         public async Task<IActionResult> MyFiles()

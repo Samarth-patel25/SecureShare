@@ -1,150 +1,128 @@
 ﻿@model IEnumerable<SecureShare.Models.File>
 
+@functions {
+    static string FormatSize(double bytes) =>
+        bytes >= 1048576 ? $"{bytes / 1048576.0:0.##} MB" : $"{bytes / 1024.0:0.##} KB";
+}
+
 @{
     ViewData["Title"] = "My Files";
 }
 
-<div class="container mt-4">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">My Files</h2>
+        <div class="text-muted">
+            @Model.Count() files &middot; @FormatSize(Model.Sum(f => (double)f.FileSize)) stored
+        </div>
+    </div>
+    <div>
+        <a asp-controller="Share" asp-action="Manage" class="btn btn-outline-secondary me-2">Manage Shares</a>
+        <a asp-controller="File" asp-action="Upload" class="btn btn-primary">+ Upload</a>
+    </div>
+</div>
 
-    <h2>My Files</h2>
-
-    <a asp-controller="Share"
-       asp-action="Manage"
-       class="btn btn-secondary mb-3">
-        Manage Shares
-    </a>
-
-    @if (!Model.Any())
-    {
-        <p>You have not uploaded any files yet.</p>
-    }
-    else
-    {
-        <table class="table table-bordered table-striped mt-3">
-
-            <thead>
-                <tr>
-                    <th>File Name</th>
-                    <th>Size</th>
-                    <th>Type</th>
-                    <th>Uploaded At</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                @foreach (var file in Model)
-                {
+@if (!Model.Any())
+{
+    <div class="ss-card p-5 text-center">
+        <p class="text-muted mb-3">You have not uploaded any files yet.</p>
+        <a asp-controller="File" asp-action="Upload" class="btn btn-primary">Upload your first file</a>
+    </div>
+}
+else
+{
+    <div class="ss-card overflow-hidden">
+        <div class="table-responsive">
+            <table class="ss-table">
+                <thead>
                     <tr>
-                        <td>@file.OriginalFileName</td>
+                        <th>Name</th>
+                        <th>Size</th>
+                        <th>Uploaded</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var file in Model)
+                    {
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-3">
+                                    <partial name="_FileChip" model="file.OriginalFileName" />
+                                    <div>
+                                        <div class="fw-semibold">@file.OriginalFileName</div>
+                                        <div class="text-muted small">@file.ContentType</div>
+                                    </div>
+                                </div>
+                            </td>
 
-                        <td>
-                            @(Math.Round(file.FileSize / 1024.0, 2)) KB
-                        </td>
+                            <td class="text-muted">@FormatSize(file.FileSize)</td>
 
-                        <td>
-                            @file.ContentType
-                        </td>
+                            <td class="text-muted">
+                                @file.UploadedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+                            </td>
 
-                        <td>
-                            @file.UploadedAt.ToLocalTime()
-                        </td>
+                            <td class="text-end text-nowrap">
+                                <a asp-controller="File" asp-action="Download" asp-route-id="@file.Id"
+                                   class="btn btn-outline-secondary btn-sm">Download</a>
 
-                        <td>
-                            <a asp-controller="File"
-                               asp-action="Download"
-                               asp-route-id="@file.Id"
-                               class="btn btn-primary">
-                                Download
-                            </a>
-
-                            <form asp-controller="File"
-                                  asp-action="Delete"
-                                  method="post"
-                                  class="d-inline">
-
-                                <input type="hidden"
-                                       name="id"
-                                       value="@file.Id" />
-
-                                <button type="submit"
-                                        class="btn btn-danger"
-                                        onclick="return confirm('Are you sure you want to delete this file?');">
-                                    Delete
-                                </button>
-                            </form>
-
-                            <form asp-controller="Share"
-                                  asp-action="Create"
-                                  method="post"
-                                  class="d-inline">
-
-                                <input type="hidden"
-                                       name="fileId"
-                                       value="@file.Id" />
-
-                                <select name="expiryHours"
-                                        class="form-select d-inline-block"
-                                        style="width: auto;">
-
-                                    <option value="0">
-                                        Never expires
-                                    </option>
-
-                                    <option value="1">
-                                        1 hour
-                                    </option>
-
-                                    <option value="24">
-                                        1 day
-                                    </option>
-
-                                    <option value="168">
-                                        7 days
-                                    </option>
-
-                                </select>
-
-                                <select name="maxDownloads"
-                                        class="form-select d-inline-block"
-                                        style="width: auto;">
-
-                                    <option value="0">
-                                        Unlimited downloads
-                                    </option>
-
-                                    <option value="1">
-                                        1 download
-                                    </option>
-
-                                    <option value="5">
-                                        5 downloads
-                                    </option>
-
-                                    <option value="10">
-                                        10 downloads
-                                    </option>
-
-                                </select>
-
-                                <input type="password"
-                                       name="sharePassword"
-                                       class="form-control d-inline-block"
-                                       style="width: 180px;"
-                                       placeholder="Optional password" />
-
-                                <button type="submit"
-                                        class="btn btn-success">
+                                <button type="button" class="btn btn-primary btn-sm"
+                                        data-bs-toggle="collapse" data-bs-target="#share-@file.Id">
                                     Share
                                 </button>
 
-                            </form>
-                        </td>
-                    </tr>
-                }
-            </tbody>
+                                <form asp-controller="File" asp-action="Delete" method="post" class="d-inline">
+                                    <input type="hidden" name="id" value="@file.Id" />
+                                    <button type="submit" class="btn btn-danger-soft btn-sm"
+                                            onclick="return confirm('Are you sure you want to delete this file?');">
+                                        Delete
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
 
-        </table>
-    }
+                        <tr class="collapse ss-share-row" id="share-@file.Id">
+                            <td colspan="4">
+                                <form asp-controller="Share" asp-action="Create" method="post"
+                                      class="row g-3 align-items-end">
 
-</div>
+                                    <input type="hidden" name="fileId" value="@file.Id" />
+
+                                    <div class="col-md-3">
+                                        <label class="form-label">Expires</label>
+                                        <select name="expiryHours" class="form-select">
+                                            <option value="0">Never expires</option>
+                                            <option value="1">1 hour</option>
+                                            <option value="24">1 day</option>
+                                            <option value="168">7 days</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label">Download limit</label>
+                                        <select name="maxDownloads" class="form-select">
+                                            <option value="0">Unlimited downloads</option>
+                                            <option value="1">1 download</option>
+                                            <option value="5">5 downloads</option>
+                                            <option value="10">10 downloads</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Password (optional)</label>
+                                        <input type="password" name="sharePassword" class="form-control"
+                                               placeholder="Optional password" />
+                                    </div>
+
+                                    <div class="col-md-2">
+                                        <button type="submit" class="btn btn-primary w-100">Create link</button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

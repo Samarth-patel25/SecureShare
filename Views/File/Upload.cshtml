@@ -4,18 +4,25 @@
     ViewData["Title"] = "Upload File";
 }
 
-<h2>Upload File</h2>
-@* enctype  is required when sending an actual file from the browser to ASP.NET Core. *@
-<form asp-action="Upload" method="post" enctype="multipart/form-data">
+<div class="mx-auto" style="max-width: 640px;">
+    <h2 class="fw-bold mb-1">Upload file</h2>
+    <p class="text-muted mb-4">Files are encrypted with AES-256 before being stored.</p>
 
-    <div class="mb-3">
-        <label asp-for="File" class="form-label">Choose File</label>
-        <input asp-for="File" class="form-control" type="file" />
-        <span asp-validation-for="File" class="text-danger"></span>
-    </div>
+    @* enctype is required when sending an actual file from the browser to ASP.NET Core. *@
+    <form asp-action="Upload" method="post" enctype="multipart/form-data">
 
-    <button type="submit" class="btn btn-primary">
-        Upload
-    </button>
+        <div class="ss-drop mb-3">
+            <div class="ss-ico mx-auto">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16" /></svg>
+            </div>
+            <div class="fw-semibold mt-3">Choose a file to upload</div>
+            <div class="text-muted small">PDF, JPG, PNG, ZIP, DOCX &middot; up to 10 MB</div>
 
-</form>
+            <input asp-for="File" class="form-control" type="file"
+                   accept=".pdf,.jpg,.jpeg,.png,.zip,.docx" />
+            <span asp-validation-for="File" class="text-danger d-block mt-2"></span>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 py-2">Upload securely</button>
+    </form>
+</div>
