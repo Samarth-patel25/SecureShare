@@ -26,5 +26,9 @@ namespace SecureShare.Models
         public int DownloadCount { get; set; } = 0;
 
         public File File { get; set; } = null!;
+
+        public string? PasswordHash { get; set; }
+
+        public bool IsPasswordProtected { get; set; } = false;
     }
 }

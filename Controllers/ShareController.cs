@@ -6,6 +6,7 @@ using SecureShare.Data;
 using SecureShare.Models;
 using SecureShare.Services;
 using FileShare = SecureShare.Models.FileShare;
+using Microsoft.AspNetCore.Identity;
 
 namespace SecureShare.Controllers
 {
@@ -14,15 +15,17 @@ namespace SecureShare.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly EncryptionService _encryptionService;
+        private readonly IPasswordHasher<FileShare> _passwordHasher;
 
-        public ShareController(ApplicationDbContext context,EncryptionService encryption)
+        public ShareController(ApplicationDbContext context,EncryptionService encryption, IPasswordHasher<FileShare> passwordHasher)
         {
             _context = context;
             _encryptionService = encryption;
+            _passwordHasher = passwordHasher;
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(int fileId, int expiryHours, int maxDownloads)
+        public async Task<IActionResult> Create(int fileId, int expiryHours, int maxDownloads, string? sharePassword)
         {
             string userId = User.FindFirst(
                 System.Security.Claims.ClaimTypes.NameIdentifier
@@ -61,7 +64,14 @@ namespace SecureShare.Controllers
                 MaxDownloads = maxDownloads > 0 ? maxDownloads : null
             };
 
-           
+            if (!string.IsNullOrWhiteSpace(sharePassword))
+            {
+                fileShare.IsPasswordProtected = true;
+                fileShare.PasswordHash = _passwordHasher.HashPassword(
+                    fileShare,
+                    sharePassword
+                );
+            }
 
             _context.FileShares.Add(fileShare);
 
@@ -109,6 +119,16 @@ namespace SecureShare.Controllers
                 fileShare.DownloadCount >= fileShare.MaxDownloads.Value)
             {
                 return Content("This share link has reached its download limit.");
+            }
+
+            if (fileShare.IsPasswordProtected)
+            {
+                var model = new SharePasswordViewModel
+                {
+                    Token = token
+                };
+
+                return View("Password", model);
             }
 
             var file = await _context.Files
@@ -175,6 +195,93 @@ namespace SecureShare.Controllers
                 .ToListAsync();
 
             return View(shares);
+        }
+
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> VerifyPassword(SharePasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View("Password", model);
+            }
+
+            var fileShare = await _context.FileShares
+                .FirstOrDefaultAsync(s => s.ShareToken == model.Token);
+
+            if (fileShare == null)
+            {
+                return NotFound();
+            }
+
+            if (fileShare.IsRevoked)
+            {
+                return Content("This share link has been revoked.");
+            }
+
+            if (fileShare.ExpiresAt.HasValue &&
+                fileShare.ExpiresAt.Value < DateTime.UtcNow)
+            {
+                return Content("This share link has expired.");
+            }
+
+            if (fileShare.MaxDownloads.HasValue &&
+                fileShare.DownloadCount >= fileShare.MaxDownloads.Value)
+            {
+                return Content("This share link has reached its download limit.");
+            }
+
+            if (!fileShare.IsPasswordProtected ||
+                string.IsNullOrEmpty(fileShare.PasswordHash))
+            {
+                return RedirectToAction(
+                    "Access",
+                    new { token = model.Token }
+                );
+            }
+
+            var result = _passwordHasher.VerifyHashedPassword(
+                fileShare,
+                fileShare.PasswordHash,
+                model.Password
+            );
+
+            if (result == PasswordVerificationResult.Failed)
+            {
+                ModelState.AddModelError(
+                    "Password",
+                    "Incorrect password."
+                );
+
+                return View("Password", model);
+            }
+
+            var file = await _context.Files
+                .FirstOrDefaultAsync(f => f.Id == fileShare.FileId);
+
+            if (file == null)
+            {
+                return NotFound();
+            }
+
+            if (!System.IO.File.Exists(file.FilePath))
+            {
+                return NotFound();
+            }
+
+            byte[] decryptedFile = await _encryptionService.DecryptFileAsync(
+                file.FilePath
+            );
+
+            fileShare.DownloadCount++;
+
+            await _context.SaveChangesAsync();
+
+            return File(
+                decryptedFile,
+                file.ContentType,
+                file.OriginalFileName
+            );
         }
     }
 }

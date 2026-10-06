@@ -23,6 +23,7 @@
                     <th>Expires</th>
                     <th>Downloads</th>
                     <th>Status</th>
+                    <th>Share Link</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -97,6 +98,29 @@
                         </td>
 
                         <td>
+                            @{
+                                string shareLink =
+                                    $"{Context.Request.Scheme}://{Context.Request.Host}" +
+                                    $"{Url.Action("Access", "Share", new { token = share.ShareToken })}";
+                            }
+
+                            @if (!share.IsRevoked)
+                            {
+                                <button type="button"
+                                        class="btn btn-primary btn-sm"
+                                        onclick="copyLink('@shareLink')">
+                                    Copy Link
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="text-muted">
+                                    Unavailable
+                                </span>
+                            }
+                        </td>
+
+                        <td>
 
                             @if (!share.IsRevoked)
                             {
@@ -133,3 +157,11 @@
     }
 
 </div>
+
+
+<script>
+    function copyLink(link) {
+        navigator.clipboard.writeText(link);
+        alert("Share link copied!");
+    }
+</script>

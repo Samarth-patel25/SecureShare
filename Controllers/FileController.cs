@@ -158,5 +158,32 @@ namespace SecureShare.Controllers
                 file.OriginalFileName
             );
         }
+
+        [HttpPost]
+        public async Task<IActionResult> Delete(int id)
+        {
+            string userId = User.FindFirst(
+                System.Security.Claims.ClaimTypes.NameIdentifier
+            )!.Value;
+
+            var file = await _context.Files
+                .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId);
+
+            if (file == null)
+            {
+                return NotFound();
+            }
+
+            if (System.IO.File.Exists(file.FilePath))
+            {
+                System.IO.File.Delete(file.FilePath);
+            }
+
+            _context.Files.Remove(file);
+
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("MyFiles");
+        }
     }
 }

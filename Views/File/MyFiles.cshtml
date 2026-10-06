@@ -7,6 +7,7 @@
 <div class="container mt-4">
 
     <h2>My Files</h2>
+
     <a asp-controller="Share"
        asp-action="Manage"
        class="btn btn-secondary mb-3">
@@ -35,9 +36,7 @@
                 @foreach (var file in Model)
                 {
                     <tr>
-                        <td>
-                            @file.OriginalFileName
-                        </td>
+                        <td>@file.OriginalFileName</td>
 
                         <td>
                             @(Math.Round(file.FileSize / 1024.0, 2)) KB
@@ -59,32 +58,83 @@
                                 Download
                             </a>
 
+                            <form asp-controller="File"
+                                  asp-action="Delete"
+                                  method="post"
+                                  class="d-inline">
+
+                                <input type="hidden"
+                                       name="id"
+                                       value="@file.Id" />
+
+                                <button type="submit"
+                                        class="btn btn-danger"
+                                        onclick="return confirm('Are you sure you want to delete this file?');">
+                                    Delete
+                                </button>
+                            </form>
+
                             <form asp-controller="Share"
                                   asp-action="Create"
                                   method="post"
                                   class="d-inline">
 
-                                <input type="hidden" name="fileId" value="@file.Id" />
+                                <input type="hidden"
+                                       name="fileId"
+                                       value="@file.Id" />
 
                                 <select name="expiryHours"
                                         class="form-select d-inline-block"
                                         style="width: auto;">
-                                    <option value="0">Never expires</option>
-                                    <option value="1">1 hour</option>
-                                    <option value="24">1 day</option>
-                                    <option value="168">7 days</option>
+
+                                    <option value="0">
+                                        Never expires
+                                    </option>
+
+                                    <option value="1">
+                                        1 hour
+                                    </option>
+
+                                    <option value="24">
+                                        1 day
+                                    </option>
+
+                                    <option value="168">
+                                        7 days
+                                    </option>
+
                                 </select>
 
                                 <select name="maxDownloads"
                                         class="form-select d-inline-block"
                                         style="width: auto;">
-                                    <option value="0">Unlimited downloads</option>
-                                    <option value="1">1 download</option>
-                                    <option value="5">5 downloads</option>
-                                    <option value="10">10 downloads</option>
+
+                                    <option value="0">
+                                        Unlimited downloads
+                                    </option>
+
+                                    <option value="1">
+                                        1 download
+                                    </option>
+
+                                    <option value="5">
+                                        5 downloads
+                                    </option>
+
+                                    <option value="10">
+                                        10 downloads
+                                    </option>
+
                                 </select>
 
-                                <button type="submit" class="btn btn-success">
+                                <input type="password"
+                                       name="sharePassword"
+                                       class="form-control d-inline-block"
+                                       style="width: 180px;"
+                                       placeholder="Optional password" />
+
+                                <button type="submit"
+                                        class="btn btn-success">
                                     Share
                                 </button>
 
