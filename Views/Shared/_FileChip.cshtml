@@ -1,0 +1,12 @@
+﻿@model string
+@{
+    var ext = System.IO.Path.GetExtension(Model ?? "").TrimStart('.').ToLowerInvariant();
+    var cls = ext switch
+    {
+        "pdf" => "pdf",
+        "jpg" or "jpeg" or "png" => "img",
+        "docx" => "doc",
+        _ => "zip"
+    };
+}
+<span class="ss-ft ss-ft-@cls">@ext.ToUpperInvariant()</span>

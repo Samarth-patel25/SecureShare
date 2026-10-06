@@ -1,176 +1,99 @@
-﻿<!DOCTYPE html>
+﻿@{
+    var ctrl = ViewContext.RouteData.Values["controller"]?.ToString();
+    string Active(string c) => ctrl == c ? "active" : "";
+}
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
     <title>@ViewData["Title"] - SecureShare</title>
 
-    <link rel="stylesheet"
-          href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-
-    <link rel="stylesheet"
-          href="~/css/site.css"
-          asp-append-version="true" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-
 <body>
-
     <header>
-
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
-
+        <nav class="navbar navbar-expand-lg ss-nav sticky-top">
             <div class="container">
-
-                <a class="navbar-brand fw-bold"
-                   asp-controller="Home"
-                   asp-action="Index">
-
-                    <span class="text-primary">Secure</span>Share
+                <a class="navbar-brand ss-brand" asp-controller="Home" asp-action="Index">
+                    <span class="ss-logo">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+                    </span>
+                    SecureShare
                 </a>
 
-                <button class="navbar-toggler"
-                        type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#mainNavbar"
-                        aria-controls="mainNavbar"
-                        aria-expanded="false"
-                        aria-label="Toggle navigation">
-
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#mainNavbar" aria-controls="mainNavbar"
+                        aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
-
                 </button>
 
-                <div class="collapse navbar-collapse"
-                     id="mainNavbar">
-
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-
+                <div class="collapse navbar-collapse" id="mainNavbar">
+                    <ul class="navbar-nav ms-lg-3 me-auto mb-2 mb-lg-0 gap-lg-1">
                         <li class="nav-item">
-                            <a class="nav-link"
-                               asp-controller="Home"
-                               asp-action="Index">
-                                Home
-                            </a>
+                            <a class="nav-link @Active("Home")" asp-controller="Home" asp-action="Index">Home</a>
                         </li>
 
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <li class="nav-item">
-                                <a class="nav-link"
-                                   asp-controller="File"
-                                   asp-action="Upload">
-                                    Upload
-                                </a>
+                                <a class="nav-link @Active("File")" asp-controller="File" asp-action="MyFiles">My Files</a>
                             </li>
-
                             <li class="nav-item">
-                                <a class="nav-link"
-                                   asp-controller="File"
-                                   asp-action="MyFiles">
-                                    My Files
-                                </a>
+                                <a class="nav-link" asp-controller="File" asp-action="Upload">Upload</a>
                             </li>
-
                             <li class="nav-item">
-                                <a class="nav-link"
-                                   asp-controller="Share"
-                                   asp-action="Manage">
-                                    Manage Shares
-                                </a>
+                                <a class="nav-link @Active("Share")" asp-controller="Share" asp-action="Manage">Manage Shares</a>
                             </li>
                         }
-
                     </ul>
 
-                    <ul class="navbar-nav">
-
+                    <ul class="navbar-nav align-items-lg-center gap-lg-2">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <li class="nav-item">
-                                <span class="nav-link text-light">
-                                    Hello, @User.Identity.Name
-                                </span>
+                                <span class="nav-link disabled">@User.Identity.Name</span>
                             </li>
-
                             <li class="nav-item">
-                                <form asp-area="Identity"
-                                      asp-page="/Account/Logout"
-                                      method="post">
-
-                                    <button type="submit"
-                                            class="btn btn-outline-light btn-sm mt-1">
-                                        Logout
-                                    </button>
-
+                                <form asp-area="Identity" asp-page="/Account/Logout" method="post">
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm">Logout</button>
                                 </form>
                             </li>
                         }
                         else
                         {
                             <li class="nav-item">
-                                <a class="nav-link"
-                                   asp-area="Identity"
-                                   asp-page="/Account/Login">
-                                    Login
-                                </a>
+                                <a class="nav-link" asp-area="Identity" asp-page="/Account/Login">Login</a>
                             </li>
-
-                            <li class="nav-item ms-lg-2">
-                                <a class="btn btn-primary btn-sm mt-1"
-                                   asp-area="Identity"
-                                   asp-page="/Account/Register">
-                                    Register
-                                </a>
+                            <li class="nav-item">
+                                <a class="btn btn-primary btn-sm" asp-area="Identity" asp-page="/Account/Register">Get started</a>
                             </li>
                         }
-
                     </ul>
-
                 </div>
-
             </div>
-
         </nav>
-
     </header>
 
     <main>
-
         <div class="container py-4">
-
             @RenderBody()
-
         </div>
-
     </main>
 
     <footer class="border-top mt-5">
-
         <div class="container py-3 text-center text-muted">
-
-            <small>
-                SecureShare &copy; @DateTime.Now.Year
-            </small>
-
-            <span class="mx-2">•</span>
-
-            <small>
-                Secure File Sharing Platform
-            </small>
-
+            <small>SecureShare &copy; @DateTime.Now.Year</small>
+            <span class="mx-2">&bull;</span>
+            <small>Encrypted file sharing</small>
         </div>
-
     </footer>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
-
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script src="~/js/site.js"
-            asp-append-version="true"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
 
     @await RenderSectionAsync("Scripts", required: false)
-
 </body>
 </html>
