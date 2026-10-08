@@ -1,6 +1,9 @@
 ﻿@{
     var ctrl = ViewContext.RouteData.Values["controller"]?.ToString();
-    string Active(string c) => ctrl == c ? "active" : "";
+    var action = ViewContext.RouteData.Values["action"]?.ToString();
+
+    string Active(string c, string a) =>
+        ctrl == c && action == a ? "active" : "";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -31,22 +34,50 @@
 
                 <div class="collapse navbar-collapse" id="mainNavbar">
                     <ul class="navbar-nav ms-lg-3 me-auto mb-2 mb-lg-0 gap-lg-1">
+
                         <li class="nav-item">
-                            <a class="nav-link @Active("Home")" asp-controller="Home" asp-action="Index">Home</a>
+                            <a class="nav-link @Active("Home", "Index")"
+                               asp-controller="Home"
+                               asp-action="Index">
+                                Home
+                            </a>
                         </li>
 
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <li class="nav-item">
-                                <a class="nav-link @Active("File")" asp-controller="File" asp-action="MyFiles">My Files</a>
+                                <a class="nav-link @Active("File", "MyFiles")"
+                                   asp-controller="File"
+                                   asp-action="MyFiles">
+                                    My Files
+                                </a>
                             </li>
+
                             <li class="nav-item">
-                                <a class="nav-link" asp-controller="File" asp-action="Upload">Upload</a>
+                                <a class="nav-link @Active("File", "SharedWithMe")"
+                                   asp-controller="File"
+                                   asp-action="SharedWithMe">
+                                    Shared With Me
+                                </a>
                             </li>
+
                             <li class="nav-item">
-                                <a class="nav-link @Active("Share")" asp-controller="Share" asp-action="Manage">Manage Shares</a>
+                                <a class="nav-link"
+                                   asp-controller="File"
+                                   asp-action="Upload">
+                                    Upload
+                                </a>
+                            </li>
+
+                            <li class="nav-item">
+                                <a class="nav-link @Active("Share", "Manage")"
+                                   asp-controller="Share"
+                                   asp-action="Manage">
+                                    Manage Shares
+                                </a>
                             </li>
                         }
+
                     </ul>
 
                     <ul class="navbar-nav align-items-lg-center gap-lg-2">

@@ -1,0 +1,127 @@
+﻿@model IEnumerable<SecureShare.Models.FilePermission>
+
+@functions {
+    static string FormatSize(double bytes) =>
+        bytes >= 1048576
+            ? $"{bytes / 1048576.0:0.##} MB"
+            : $"{bytes / 1024.0:0.##} KB";
+}
+
+@{
+    ViewData["Title"] = "Shared With Me";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Shared With Me</h2>
+
+        <div class="text-muted">
+            Files shared directly with your account
+        </div>
+    </div>
+
+    <a asp-controller="File"
+       asp-action="MyFiles"
+       class="btn btn-outline-secondary">
+        My Files
+    </a>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="ss-card p-5 text-center">
+        <div class="ss-ico mx-auto mb-3"
+             style="width:56px;height:56px;">
+            <svg width="24"
+                 height="24"
+                 viewBox="0 0 24 24"
+                 fill="none"
+                 stroke="currentColor"
+                 stroke-width="2"
+                 stroke-linecap="round"
+                 stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M19 8v6" />
+                <path d="M22 11h-6" />
+            </svg>
+        </div>
+
+        <h4 class="fw-bold mb-2">
+            No files shared with you
+        </h4>
+
+        <p class="text-muted mb-0">
+            Files that other users share directly with you will appear here.
+        </p>
+    </div>
+}
+else
+{
+    <div class="ss-card overflow-hidden">
+        <div class="table-responsive">
+            <table class="ss-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Size</th>
+                        <th>Shared</th>
+                        <th>Permission</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @foreach (var permission in Model)
+                    {
+                        var file = permission.File;
+
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-3">
+
+                                    <partial name="_FileChip"
+                                             model="file.OriginalFileName" />
+
+                                    <div>
+                                        <div class="fw-semibold">
+                                            @file.OriginalFileName
+                                        </div>
+
+                                        <div class="text-muted small">
+                                            @file.ContentType
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </td>
+
+                            <td class="text-muted">
+                                @FormatSize(file.FileSize)
+                            </td>
+
+                            <td class="text-muted">
+                                @permission.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+                            </td>
+
+                            <td>
+                                <span class="badge bg-light text-dark border">
+                                    @permission.Permission
+                                </span>
+                            </td>
+
+                            <td class="text-end">
+                                <a asp-controller="File"
+                                   asp-action="Download"
+                                   asp-route-id="@file.Id"
+                                   class="btn btn-primary btn-sm">
+                                    Download
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

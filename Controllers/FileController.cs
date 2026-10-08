@@ -129,6 +129,7 @@ namespace SecureShare.Controllers
             return View(files);
         }
 
+        [HttpGet]
         public async Task<IActionResult> Download(int id)
         {
             string userId = User.FindFirst(
@@ -136,11 +137,24 @@ namespace SecureShare.Controllers
             )!.Value;
 
             var file = await _context.Files
-                .FirstOrDefaultAsync(f => f.Id == id && f.UserId == userId);
+                .FirstOrDefaultAsync(f => f.Id == id);
 
             if (file == null)
             {
                 return NotFound();
+            }
+
+            bool isOwner = file.UserId == userId;
+
+            bool hasPermission = await _context.FilePermissions
+                .AnyAsync(p =>
+                    p.FileId == id &&
+                    p.UserId == userId &&
+                    !p.IsRevoked);
+
+            if (!isOwner && !hasPermission)
+            {
+                return Forbid();
             }
 
             if (!System.IO.File.Exists(file.FilePath))
@@ -148,9 +162,10 @@ namespace SecureShare.Controllers
                 return NotFound();
             }
 
-            byte[] decryptedFile = await _encryptionService.DecryptFileAsync(
-                file.FilePath
-            );
+            byte[] decryptedFile =
+                await _encryptionService.DecryptFileAsync(
+                    file.FilePath
+                );
 
             return File(
                 decryptedFile,
