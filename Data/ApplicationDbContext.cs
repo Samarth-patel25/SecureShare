@@ -8,5 +8,6 @@ namespace SecureShare.Data
     {
         public DbSet<SecureShare.Models.File> Files { get; set; }
         public DbSet<SecureShare.Models.FileShare> FileShares { get; set; }
+        public DbSet<SecureShare.Models.FilePermission> FilePermissions { get; set; }
     }
 }

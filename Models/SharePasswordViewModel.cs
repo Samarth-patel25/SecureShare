@@ -7,8 +7,15 @@ namespace SecureShare.Models
         [Required]
         public string Token { get; set; } = string.Empty;
 
-        [Required]
         [DataType(DataType.Password)]
-        public string Password { get; set; } = string.Empty;
+        public string? Password { get; set; }
+
+        public bool RequiresPassword { get; set; }
+
+        public string? FileName { get; set; }
+
+        public string? ContentType { get; set; }
+
+        public string? ErrorMessage { get; set; }
     }
 }

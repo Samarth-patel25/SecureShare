@@ -185,5 +185,22 @@ namespace SecureShare.Controllers
 
             return RedirectToAction("MyFiles");
         }
+        [Authorize]
+        public async Task<IActionResult> SharedWithMe()
+        {
+            string userId = User.FindFirst(
+                System.Security.Claims.ClaimTypes.NameIdentifier
+            )!.Value;
+
+            var sharedFiles = await _context.FilePermissions
+                .Include(p => p.File)
+                .Where(p =>
+                    p.UserId == userId &&
+                    !p.IsRevoked)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+
+            return View(sharedFiles);
+        }
     }
 }

@@ -16,12 +16,15 @@ namespace SecureShare.Controllers
         private readonly ApplicationDbContext _context;
         private readonly EncryptionService _encryptionService;
         private readonly IPasswordHasher<FileShare> _passwordHasher;
+        private readonly UserManager<IdentityUser> _userManager;
 
-        public ShareController(ApplicationDbContext context,EncryptionService encryption, IPasswordHasher<FileShare> passwordHasher)
+        public ShareController(ApplicationDbContext context,EncryptionService encryption, IPasswordHasher<FileShare> passwordHasher,
+                UserManager<IdentityUser> userManager)
         {
             _context = context;
             _encryptionService = encryption;
             _passwordHasher = passwordHasher;
+            _userManager = userManager;
         }
 
         [HttpPost]
@@ -84,7 +87,108 @@ namespace SecureShare.Controllers
                 Request.Scheme
             )!;
 
-            return Content(shareLink);
+            TempData["ShareLink"] = shareLink;
+            TempData["SharedFileId"] = file.Id;
+
+            return RedirectToAction("MyFiles", "File");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ShareWithUser(int fileId,string email)
+        {
+            string ownerId = User.FindFirst(
+                System.Security.Claims.ClaimTypes.NameIdentifier
+            )!.Value;
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                TempData["ShareUserError"] = "Please enter an email address.";
+
+                return RedirectToAction("MyFiles", "File");
+            }
+
+            var file = await _context.Files
+                .FirstOrDefaultAsync(f =>
+                    f.Id == fileId &&
+                    f.UserId == ownerId);
+
+            if (file == null)
+            {
+                return NotFound();
+            }
+
+            var recipient = await _userManager.FindByEmailAsync(
+                email.Trim()
+            );
+
+            if (recipient == null)
+            {
+                TempData["ShareUserError"] =
+                    "No SecureShare account was found with that email address.";
+
+                TempData["ShareUserFileId"] = fileId;
+
+                return RedirectToAction("MyFiles", "File");
+            }
+
+            if (recipient.Id == ownerId)
+            {
+                TempData["ShareUserError"] =
+                    "You cannot share a file with yourself.";
+
+                TempData["ShareUserFileId"] = fileId;
+
+                return RedirectToAction("MyFiles", "File");
+            }
+
+            var existingPermission = await _context.FilePermissions
+                .FirstOrDefaultAsync(p =>
+                    p.FileId == fileId &&
+                    p.UserId == recipient.Id);
+
+            if (existingPermission != null)
+            {
+                if (!existingPermission.IsRevoked)
+                {
+                    TempData["ShareUserError"] =
+                        "This file is already shared with this user.";
+                }
+                else
+                {
+                    existingPermission.IsRevoked = false;
+                    existingPermission.Permission = "Viewer";
+                    existingPermission.CreatedAt = DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+
+                    TempData["ShareUserSuccess"] =
+                        $"File shared with {recipient.Email}.";
+                }
+
+                TempData["ShareUserFileId"] = fileId;
+
+                return RedirectToAction("MyFiles", "File");
+            }
+
+            var permission = new FilePermission
+            {
+                FileId = fileId,
+                UserId = recipient.Id,
+                Permission = "Viewer",
+                CreatedAt = DateTime.UtcNow,
+                IsRevoked = false
+            };
+
+            _context.FilePermissions.Add(permission);
+
+            await _context.SaveChangesAsync();
+
+            TempData["ShareUserSuccess"] =
+                $"File shared with {recipient.Email}.";
+
+            TempData["ShareUserFileId"] = fileId;
+
+            return RedirectToAction("MyFiles", "File");
         }
 
         [AllowAnonymous]
@@ -93,59 +197,93 @@ namespace SecureShare.Controllers
         {
             if (string.IsNullOrEmpty(token))
             {
-                return NotFound();
+                return View("Error", new SharePasswordViewModel
+                {
+                    ErrorMessage = "This share link is invalid."
+                });
             }
 
             var fileShare = await _context.FileShares
+                .Include(s => s.File)
                 .FirstOrDefaultAsync(s => s.ShareToken == token);
 
             if (fileShare == null)
             {
-                return NotFound();
+                return View("Error", new SharePasswordViewModel
+                {
+                    ErrorMessage = "This share link is invalid or no longer exists."
+                });
             }
+
+            var model = new SharePasswordViewModel
+            {
+                Token = token,
+                FileName = fileShare.File?.OriginalFileName,
+                ContentType = fileShare.File?.ContentType,
+                RequiresPassword = fileShare.IsPasswordProtected
+            };
 
             if (fileShare.IsRevoked)
             {
-                return Content("This share link has been revoked.");
+                model.ErrorMessage = "This share link has been revoked.";
+
+                if (fileShare.IsPasswordProtected)
+                {
+                    return View("Password", model);
+                }
+
+                return View("Error", model);
             }
 
             if (fileShare.ExpiresAt.HasValue &&
                 fileShare.ExpiresAt.Value < DateTime.UtcNow)
             {
-                return Content("This share link has expired.");
+                model.ErrorMessage = "This share link has expired.";
+
+                if (fileShare.IsPasswordProtected)
+                {
+                    return View("Password", model);
+                }
+
+                return View("Error", model);
             }
 
             if (fileShare.MaxDownloads.HasValue &&
                 fileShare.DownloadCount >= fileShare.MaxDownloads.Value)
             {
-                return Content("This share link has reached its download limit.");
+                model.ErrorMessage = "This share link has reached its download limit.";
+
+                if (fileShare.IsPasswordProtected)
+                {
+                    return View("Password", model);
+                }
+
+                return View("Error", model);
             }
 
+            if (fileShare.File == null)
+            {
+                model.ErrorMessage = "The shared file could not be found.";
+
+                return View("Error", model);
+            }
+
+            if (!System.IO.File.Exists(fileShare.File.FilePath))
+            {
+                model.ErrorMessage = "The shared file is no longer available.";
+
+                return View("Error", model);
+            }
+
+            // Password-protected file
             if (fileShare.IsPasswordProtected)
             {
-                var model = new SharePasswordViewModel
-                {
-                    Token = token
-                };
-
                 return View("Password", model);
             }
 
-            var file = await _context.Files
-                .FirstOrDefaultAsync(f => f.Id == fileShare.FileId);
-
-            if (file == null)
-            {
-                return NotFound();
-            }
-
-            if (!System.IO.File.Exists(file.FilePath))
-            {
-                return NotFound();
-            }
-
+            // Unprotected file - download directly
             byte[] decryptedFile = await _encryptionService.DecryptFileAsync(
-                file.FilePath
+                fileShare.File.FilePath
             );
 
             fileShare.DownloadCount++;
@@ -154,8 +292,8 @@ namespace SecureShare.Controllers
 
             return File(
                 decryptedFile,
-                file.ContentType,
-                file.OriginalFileName
+                fileShare.File.ContentType,
+                fileShare.File.OriginalFileName
             );
         }
 
@@ -201,43 +339,87 @@ namespace SecureShare.Controllers
         [HttpPost]
         public async Task<IActionResult> VerifyPassword(SharePasswordViewModel model)
         {
-            if (!ModelState.IsValid)
-            {
-                return View("Password", model);
-            }
-
             var fileShare = await _context.FileShares
+                .Include(s => s.File)
                 .FirstOrDefaultAsync(s => s.ShareToken == model.Token);
 
             if (fileShare == null)
             {
-                return NotFound();
+                model.ErrorMessage = "This share link is invalid or no longer exists.";
+
+                return View("Password", model);
             }
+
+            model.FileName = fileShare.File?.OriginalFileName;
+            model.ContentType = fileShare.File?.ContentType;
+            model.RequiresPassword = fileShare.IsPasswordProtected;
 
             if (fileShare.IsRevoked)
             {
-                return Content("This share link has been revoked.");
+                model.ErrorMessage = "This share link has been revoked.";
+
+                return View("Password", model);
             }
 
             if (fileShare.ExpiresAt.HasValue &&
                 fileShare.ExpiresAt.Value < DateTime.UtcNow)
             {
-                return Content("This share link has expired.");
+                model.ErrorMessage = "This share link has expired.";
+
+                return View("Password", model);
             }
 
             if (fileShare.MaxDownloads.HasValue &&
                 fileShare.DownloadCount >= fileShare.MaxDownloads.Value)
             {
-                return Content("This share link has reached its download limit.");
+                model.ErrorMessage = "This share link has reached its download limit.";
+
+                return View("Password", model);
             }
 
-            if (!fileShare.IsPasswordProtected ||
-                string.IsNullOrEmpty(fileShare.PasswordHash))
+            if (fileShare.File == null)
             {
-                return RedirectToAction(
-                    "Access",
-                    new { token = model.Token }
+                model.ErrorMessage = "The shared file could not be found.";
+
+                return View("Password", model);
+            }
+
+            if (!System.IO.File.Exists(fileShare.File.FilePath))
+            {
+                model.ErrorMessage = "The shared file is no longer available.";
+
+                return View("Password", model);
+            }
+
+            if (!fileShare.IsPasswordProtected)
+            {
+                byte[] decryptedFile = await _encryptionService.DecryptFileAsync(
+                    fileShare.File.FilePath
                 );
+
+                fileShare.DownloadCount++;
+
+                await _context.SaveChangesAsync();
+
+                return File(
+                    decryptedFile,
+                    fileShare.File.ContentType,
+                    fileShare.File.OriginalFileName
+                );
+            }
+
+            if (string.IsNullOrWhiteSpace(model.Password))
+            {
+                model.ErrorMessage = "Please enter the password.";
+
+                return View("Password", model);
+            }
+
+            if (string.IsNullOrEmpty(fileShare.PasswordHash))
+            {
+                model.ErrorMessage = "This share link is not configured correctly.";
+
+                return View("Password", model);
             }
 
             var result = _passwordHasher.VerifyHashedPassword(
@@ -248,39 +430,24 @@ namespace SecureShare.Controllers
 
             if (result == PasswordVerificationResult.Failed)
             {
-                ModelState.AddModelError(
-                    "Password",
-                    "Incorrect password."
-                );
+                model.ErrorMessage = "Incorrect password.";
 
                 return View("Password", model);
             }
 
-            var file = await _context.Files
-                .FirstOrDefaultAsync(f => f.Id == fileShare.FileId);
-
-            if (file == null)
-            {
-                return NotFound();
-            }
-
-            if (!System.IO.File.Exists(file.FilePath))
-            {
-                return NotFound();
-            }
-
-            byte[] decryptedFile = await _encryptionService.DecryptFileAsync(
-                file.FilePath
-            );
+            byte[] decryptedPasswordProtectedFile =
+                await _encryptionService.DecryptFileAsync(
+                    fileShare.File.FilePath
+                );
 
             fileShare.DownloadCount++;
 
             await _context.SaveChangesAsync();
 
             return File(
-                decryptedFile,
-                file.ContentType,
-                file.OriginalFileName
+                decryptedPasswordProtectedFile,
+                fileShare.File.ContentType,
+                fileShare.File.OriginalFileName
             );
         }
     }
